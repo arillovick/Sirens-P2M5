@@ -1,1 +1,319 @@
+/* P2M5 Main Program
+Sirens
+3/30/2025
 
+
+Creates count for each time a button state changes. Sends counts to MatLab
+*/
+
+#include <Adafruit_NeoPixel.h> //includes neopixel library
+
+#define PIN1 11       //define pin for each strip and how many LED's in each strip
+#define PIN2 10       
+#define PIN3 9       
+#define PIN4 6       
+#define PIN5 5      
+#define NUM_LEDS 20  
+
+Adafruit_NeoPixel strip1 = Adafruit_NeoPixel(NUM_LEDS, PIN1, NEO_GRBW + NEO_KHZ800); //assigns the pins to respective LED strip
+Adafruit_NeoPixel strip2 = Adafruit_NeoPixel(NUM_LEDS, PIN2, NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPixel strip3 = Adafruit_NeoPixel(NUM_LEDS, PIN3, NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPixel strip4 = Adafruit_NeoPixel(NUM_LEDS, PIN4, NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPixel strip5 = Adafruit_NeoPixel(NUM_LEDS, PIN5, NEO_GRBW + NEO_KHZ800);
+
+const int button1Pin = 13; //constant for buttons
+const int button2Pin = 3;
+const int button3Pin = 4;
+const int button4Pin = 7;
+const int button5Pin = 8;
+
+int lastButtonState[5] = {HIGH, HIGH, HIGH, HIGH, HIGH}; //array stores previous state of each button
+ //array which determines what chamber can be used
+int activeChamber = 0; //what chamber is active
+
+int buttonPressCount = 0;  //variable for button presscount
+
+int button1State = LOW; //variables for tracking button states, and button counts
+int button2State = LOW;
+int button3State = LOW;
+int button4State = LOW;
+int button5State = LOW;
+int count1 = 0;
+int count2 = 0;
+int count3 = 0;
+int count4 = 0;
+int count5 = 0;
+int dataIn; //store incoming data from serial monitor
+
+void setup() {
+    Serial.begin(9600); //initialize serial monitor
+    Serial.setTimeout(500);
+
+    pinMode(button1Pin, INPUT_PULLUP);
+    pinMode(button2Pin, INPUT_PULLUP);
+    pinMode(button3Pin, INPUT_PULLUP);
+    pinMode(button4Pin, INPUT_PULLUP);
+    pinMode(button5Pin, INPUT_PULLUP);
+
+    strip1.begin(); //initialize each strip
+    strip2.begin();
+    strip3.begin();
+    strip4.begin();
+    strip5.begin();
+    
+    clearStrips(); //establishes clear strips function
+}
+
+void loop() {
+    button1State = digitalRead(button1Pin); //sets button states equal to current states
+    button2State = digitalRead(button2Pin);
+    button3State = digitalRead(button3Pin);
+    button4State = digitalRead(button4Pin);
+    button5State = digitalRead(button5Pin);
+
+    if (Serial.available()) {
+        dataIn = Serial.parseInt();
+    }
+
+    if (button1State == LOW && lastButtonState[0] == HIGH) { //when a certain button is pressed its count is increased
+        count1++;
+        buttonPressCount++;
+        activateChamber(1);
+        Serial.print("Button 1: ");
+        Serial.println(count1);
+        delay(200);
+    } else if (button2State == LOW && lastButtonState[1] == HIGH) {
+        count2++;
+        buttonPressCount++;
+        activateChamber(2);
+        Serial.print("Button 2: ");
+        Serial.println(count2);
+        delay(200);
+    } else if (button3State == LOW && lastButtonState[2] == HIGH) {
+        count3++;
+        buttonPressCount++;
+        activateChamber(3);
+        Serial.print("Button 3: ");
+        Serial.println(count3);
+        delay(200);
+    } else if (button4State == LOW && lastButtonState[3] == HIGH) {
+        count4++;
+        buttonPressCount++;
+        activateChamber(4);
+        Serial.print("Button 4: ");
+        Serial.println(count4);
+        delay(200);
+    } else if (button5State == LOW && lastButtonState[4] == HIGH) {
+        count5++;
+        buttonPressCount++;
+        activateChamber(5);
+        Serial.print("Button 5: ");
+        Serial.println(count5);
+        delay(200);
+    }
+
+    lastButtonState[0] = button1State;
+    lastButtonState[1] = button2State;
+    lastButtonState[2] = button3State;
+    lastButtonState[3] = button4State;
+    lastButtonState[4] = button5State;
+
+    //Serial.print("Button 1: ");
+    //Serial.println(count1); //prints button count to serial monitor
+    //Serial.print("Button 2: ");
+    //Serial.println(count2);
+    //Serial.print("Button 3: ");
+    //Serial.println(count3);
+    //Serial.print("Button 4: ");
+    //Serial.println(count4);
+    //Serial.print("Button 5: ");
+    //Serial.println(count5);
+
+    runChamberAnimation(); //function runs animation for active chamber
+    sendEngagementData();//function for sending user data
+    
+    delay(200);
+}
+
+void activateChamber(int chamber) { //prints the chamber number to the serial monitor, clears all strips, sets the active chamber, and
+    clearStrips();//initializes function for the corresponding chamber.
+    activeChamber = chamber;
+
+    switch (chamber) {
+        case 1: initializeStrip1(); break;
+        case 2: initializeStrip2(); break;
+        case 3: initializeStrip3(); break;
+        case 4: initializeStrip4(); break;
+        case 5: initializeStrip5(); break;
+    }
+}
+
+void clearStrips() { //sets all strips intitally to have no LED info
+    for (int i = 0; i < NUM_LEDS; i++) {
+        strip1.setPixelColor(i, 0, 0, 0, 0);
+        strip2.setPixelColor(i, 0, 0, 0, 0);
+        strip3.setPixelColor(i, 0, 0, 0, 0);
+        strip4.setPixelColor(i, 0, 0, 0, 0);
+        strip5.setPixelColor(i, 0, 0, 0, 0);
+    }
+    strip1.show();
+    strip2.show();
+    strip3.show();
+    strip4.show();
+    strip5.show();
+}
+
+void runChamberAnimation() { //function handles which chamber will have animation at what time. 
+    switch (activeChamber) {
+        case 1: shiftColors1(); break;
+        case 2: shiftColors2(); break;
+        case 3: shiftColors3(); break;
+        case 4: shiftColors4(); break;
+        case 5: shiftColors5(); break;
+    }
+}
+
+void sendEngagementData() { //sends more engagement data to serial monitor
+    Serial.println("Buttons Pressed: ");
+    Serial.println(buttonPressCount); 
+}
+
+void initializeStrip1() { //all strips can now have set patterns and animations unique to them
+    if (activeChamber == 1) {
+        for (int i = 0; i < NUM_LEDS; i++) {  
+            for (int j = 0; j <= i; j++) { 
+                if (j % 4 == 0) {
+                    strip1.setPixelColor(j, strip1.Color(0, 0, 255, 0));
+                } else {
+                    strip1.setPixelColor(j, strip1.Color(255, 0, 0, 0));
+                }
+            }
+            strip1.show();
+            delay(100);
+        }
+    }
+}
+
+void shiftColors1() {
+    if (activeChamber == 1) {
+        uint32_t lastColor = strip1.getPixelColor(strip1.numPixels() - 1);  
+        for (int i = strip1.numPixels() - 1; i > 0; i--) {
+            strip1.setPixelColor(i, strip1.getPixelColor(i - 1));
+        }
+        strip1.setPixelColor(0, lastColor);
+        strip1.show(); 
+        delay(10);
+    }
+}
+
+void initializeStrip2() { 
+    if (activeChamber == 2) {
+        for (int i = 0; i < NUM_LEDS; i++) {  
+            for (int j = 0; j <= i; j++) { 
+                if (j % 4 == 0) {
+                    strip2.setPixelColor(j, strip2.Color(0, 255, 0, 0)); 
+                } else {
+                    strip2.setPixelColor(j, strip2.Color(0, 0, 0, 0));
+                }
+            }
+            strip2.show();
+            delay(100);
+        }
+    }
+}
+
+void shiftColors2() {
+    if (activeChamber == 2) {
+        uint32_t lastColor = strip2.getPixelColor(strip2.numPixels() - 1);  
+        for (int i = strip2.numPixels() - 1; i > 0; i--) {
+            strip2.setPixelColor(i, strip2.getPixelColor(i - 1));
+        }
+        strip2.setPixelColor(0, lastColor);
+        strip2.show(); 
+        delay(10);
+    }
+}
+
+void initializeStrip3() { 
+    if (activeChamber == 3) {
+        for (int i = 0; i < NUM_LEDS; i++) {  
+            for (int j = 0; j <= i; j++) { 
+                if (j % 4 == 0) {
+                    strip3.setPixelColor(j, strip3.Color(255, 255, 0, 0)); 
+                } else {
+                    strip3.setPixelColor(j, strip3.Color(0, 0, 0, 0));
+                }
+            }
+            strip3.show();
+            delay(100);
+        }
+    }
+}
+
+void shiftColors3() {
+    if (activeChamber == 3) {
+        uint32_t lastColor = strip3.getPixelColor(strip3.numPixels() - 1);  
+        for (int i = strip3.numPixels() - 1; i > 0; i--) {
+            strip3.setPixelColor(i, strip3.getPixelColor(i - 1));
+        }
+        strip3.setPixelColor(0, lastColor);
+        strip3.show(); 
+        delay(10);
+    }
+}
+
+void initializeStrip4() { 
+    if (activeChamber == 4) {
+        for (int i = 0; i < NUM_LEDS; i++) {  
+            for (int j = 0; j <= i; j++) { 
+                if (j % 4 == 0) {
+                    strip4.setPixelColor(j, strip4.Color(255, 0, 255, 0)); 
+                } else {
+                    strip4.setPixelColor(j, strip4.Color(0, 0, 0, 0));
+                }
+            }
+            strip4.show();
+            delay(100);
+        }
+    }
+}
+
+void shiftColors4() {
+    if (activeChamber == 4) {
+        uint32_t lastColor = strip4.getPixelColor(strip4.numPixels() - 1);  
+        for (int i = strip4.numPixels() - 1; i > 0; i--) {
+            strip4.setPixelColor(i, strip4.getPixelColor(i - 1));
+        }
+        strip4.setPixelColor(0, lastColor);
+        strip4.show(); 
+        delay(10);
+    }
+}
+
+void initializeStrip5() { 
+    if (activeChamber == 5) {
+        for (int i = 0; i < NUM_LEDS; i++) {  
+            for (int j = 0; j <= i; j++) { 
+                if (j % 4 == 0) {
+                    strip5.setPixelColor(j, strip5.Color(0, 255, 255, 0)); 
+                } else {
+                    strip5.setPixelColor(j, strip5.Color(0, 0, 0, 0));
+                }
+            }
+            strip5.show();
+            delay(100);
+        }
+    }
+}
+
+void shiftColors5() {
+    if (activeChamber == 5) {
+        uint32_t lastColor = strip5.getPixelColor(strip5.numPixels() - 1);  
+        for (int i = strip5.numPixels() - 1; i > 0; i--) {
+            strip5.setPixelColor(i, strip5.getPixelColor(i - 1));
+        }
+        strip5.setPixelColor(0, lastColor);
+        strip5.show(); 
+        delay(10);
+    }
+}
